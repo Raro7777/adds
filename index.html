@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>광고채널 성과 대시보드 (Prototype v0.1)</title>
+  <link rel="stylesheet" href="assets/styles.css" />
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+</head>
+<body>
+  <header class="app-header">
+    <h1>광고채널 성과 대시보드</h1>
+    <div class="subtitle">스펙 v6.3 검토 기반 프로토타입 · KST · 1시간 배치 (가정)</div>
+  </header>
+
+  <div class="mock-banner">
+    ⚠ Mock 데이터 프로토타입입니다. v6.3 검토 문서의 확정 3건이 반영되어 있으며, 보류·답변 대기 항목은 UI에 표시됩니다.
+  </div>
+
+  <nav class="tabs">
+    <button class="tab-btn active" data-tab="dashboard">대시보드</button>
+    <button class="tab-btn" data-tab="config">광고비 설정</button>
+    <button class="tab-btn" data-tab="teams">팀·상담원 구성</button>
+  </nav>
+
+  <!-- 탭 1: 대시보드 -->
+  <section id="tab-dashboard" class="tab-content active">
+    <div class="filters">
+      <label>기간</label>
+      <select id="period-filter">
+        <option value="7">최근 7일</option>
+        <option value="14" selected>최근 14일</option>
+        <option value="30">최근 30일</option>
+      </select>
+      <label>채널</label>
+      <select id="channel-filter">
+        <option value="all">전체</option>
+      </select>
+    </div>
+
+    <div class="kpi-grid">
+      <div class="kpi-card">
+        <div class="kpi-label">총 광고비</div>
+        <div class="kpi-value" id="kpi-cost">-</div>
+        <div class="kpi-sub">부가세·수수료 적용 후</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-label">총 인입</div>
+        <div class="kpi-value" id="kpi-incoming">-</div>
+        <div class="kpi-sub">접수 카운팅 규칙 §5 기준</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-label">평균 인입단가</div>
+        <div class="kpi-value" id="kpi-cpi">-</div>
+        <div class="kpi-sub">광고비 ÷ 인입</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-label">평균 인입율</div>
+        <div class="kpi-value" id="kpi-cvr">-</div>
+        <div class="kpi-sub">인입 ÷ 클릭 (타입 B/C 제외)</div>
+      </div>
+    </div>
+
+    <div id="unmapped-note" class="alert" style="display: none;"></div>
+
+    <div class="card">
+      <h3 class="card-title">
+        채널별 성과
+        <span class="hint">타입 B/C는 노출·클릭 N/A (§3-3)</span>
+      </h3>
+      <table class="data">
+        <thead>
+          <tr>
+            <th>채널</th>
+            <th>노출</th>
+            <th>클릭</th>
+            <th>인입</th>
+            <th>인입율</th>
+            <th>광고비</th>
+            <th>인입단가</th>
+          </tr>
+        </thead>
+        <tbody id="channel-tbody"></tbody>
+      </table>
+    </div>
+
+    <div class="card">
+      <h3 class="card-title">
+        팀별 성과
+        <span class="hint">인입 비율 배분 (§4-1)</span>
+      </h3>
+      <table class="data">
+        <thead>
+          <tr>
+            <th>팀</th>
+            <th>인입</th>
+            <th>배분 광고비</th>
+            <th>인입단가</th>
+          </tr>
+        </thead>
+        <tbody id="team-tbody"></tbody>
+      </table>
+      <div class="formula-box">
+        인입 단가 = 채널 광고비 ÷ 채널 총 인입 · 팀별 광고비 = 팀별 인입수 × 인입 단가
+      </div>
+    </div>
+
+    <div class="card">
+      <h3 class="card-title">
+        채널별 광고비 추이
+        <span class="hint">선택 기간 일자별</span>
+      </h3>
+      <div class="chart-wrapper">
+        <canvas id="trend-chart"></canvas>
+      </div>
+    </div>
+  </section>
+
+  <!-- 탭 2: 광고비 설정 -->
+  <section id="tab-config" class="tab-content">
+    <div class="card">
+      <h3 class="card-title">채널별 광고비 설정</h3>
+      <div id="channel-config-list"></div>
+    </div>
+
+    <div class="card">
+      <h3 class="card-title">
+        부가세 / 수수료
+        <span class="hint">§6-2 — 미적용 처리 방식 미확정</span>
+      </h3>
+      <div class="config-row">
+        <div class="label-block">
+          <div class="name">부가세 (10%)</div>
+          <div class="desc">광고비에 부가세 가산</div>
+        </div>
+        <label class="toggle">
+          <input type="checkbox" id="vat-toggle" />
+          <span class="switch"></span>
+        </label>
+      </div>
+      <div class="config-row">
+        <div class="label-block">
+          <div class="name">대행 수수료 (5%)</div>
+          <div class="desc">광고비에 수수료 가산</div>
+        </div>
+        <label class="toggle">
+          <input type="checkbox" id="com-toggle" />
+          <span class="switch"></span>
+        </label>
+      </div>
+      <div class="formula-box">
+        최종 광고비 = 기본 광고비 × (1 + 부가세율) × (1 + 수수료율)
+      </div>
+    </div>
+  </section>
+
+  <!-- 탭 3: 팀·상담원 구성 -->
+  <section id="tab-teams" class="tab-content">
+    <div id="unmapped-alert" class="alert" style="display: none;"></div>
+
+    <div class="card">
+      <h3 class="card-title">팀 구성</h3>
+      <div id="team-list" class="team-list"></div>
+    </div>
+
+    <div class="card">
+      <h3 class="card-title">
+        이름 정규화 (Trim)
+        <span class="hint">§4-1 확정안 · 중간 공백 정책 #4-a 대기</span>
+      </h3>
+      <div class="config-row">
+        <div class="label-block">
+          <div class="name">앞뒤 공백 자동 제거</div>
+          <div class="desc">전산 상담원명을 매핑 키로 사용하기 전에 trim 처리</div>
+        </div>
+        <label class="toggle">
+          <input type="checkbox" id="trim-toggle" checked />
+          <span class="switch"></span>
+        </label>
+      </div>
+      <div id="trim-demo" class="trim-demo"></div>
+    </div>
+
+    <div class="card">
+      <h3 class="card-title">미매핑 상담원 처리 정책</h3>
+      <div style="font-size: 13px; line-height: 1.7;">
+        <div><strong>이전 (v6.3):</strong> 미분류 처리 (개발자 협의)</div>
+        <div><strong>현재 (v7.0 반영 예정):</strong> 알림 표시 → 운영자 등록 시 자동 반영, 집계 제외 X</div>
+      </div>
+    </div>
+  </section>
+
+  <script src="assets/mock-data.js"></script>
+  <script src="assets/app.js"></script>
+</body>
+</html>
